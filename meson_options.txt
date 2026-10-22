@@ -1,0 +1,28 @@
+# Meson option declarations for the SFML custom build.
+#
+# These options mirror the original CMake configuration, and each module is
+# enabled by default to keep the project buildable in a stock desktop setup.
+
+option('sfml_build_window', type : 'boolean', value : true,
+  description : 'Build the SFML Window module. Graphics forces this option on automatically when needed.')
+
+option('sfml_build_graphics', type : 'boolean', value : true,
+  description : 'Build the SFML Graphics module.')
+
+option('sfml_build_audio', type : 'boolean', value : true,
+  description : 'Build the SFML Audio module.')
+
+option('sfml_build_network', type : 'boolean', value : true,
+  description : 'Build the SFML Network module.')
+
+option('sfml_build_examples', type : 'boolean', value : true,
+  description : 'Build the example programs in the examples/ tree.')
+
+option('sfml_use_drm', type : 'boolean', value : false,
+  description : 'On Linux, prefer the DRM/GBM backend instead of the X11 desktop backend.')
+
+option('sfml_build_doc', type : 'boolean', value : false,
+  description : 'Generate the API documentation.')
+
+option('sfml_build_tests', type : 'boolean', value : false,
+  description : 'Build the SFML test suite when enabled by the project.')
