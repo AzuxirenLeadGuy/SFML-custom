@@ -1,9 +1,9 @@
 project(
   'SFML-custom',
   'cpp',
-  version : '3.2.0',
-  meson_version : '>=1.2.0',
-  default_options : [
+  version: '3.2.0',
+  meson_version: '>=1.2.0',
+  default_options: [
     'cpp_std=c++17',
     'warning_level=2',
     'b_lundef=false',
@@ -37,19 +37,32 @@ build_audio = get_option('sfml_build_audio')
 build_network = get_option('sfml_build_network')
 build_examples = get_option('sfml_build_examples')
 
+add_global_arguments('-DSFML_IS_BIG_ENDIAN', language: 'cpp', native: host_machine.endian() == 'big')
+cc = meson.get_compiler('cpp')
+
 if build_graphics and not get_option('sfml_build_window')
   warning('Graphics requires Window; enabling the Window module automatically.')
 endif
 
 # Common include directories used by the library sources.
-root_include = include_directories('include')
+root_include = include_directories('include', 'src')
 extlibs_include = include_directories(
   'extlibs/headers',
   'extlibs/headers/cpp-unicodelib',
+  'extlibs/headers/dr_mp3',
   'extlibs/headers/glad/include',
+  'extlibs/headers/mingw',
+  'extlibs/headers/miniaudio',
   'extlibs/headers/vulkan',
+  'extlibs/headers/qoi',
+  'extlibs/headers/stb_image',
 )
 
+drm_dep = dependency('libdrm', required: false)
+use_drm = is_linux and get_option('sfml_use_drm') and drm_dep.found()
+if use_drm
+  message('DRM is supported, and will be used in this project!')
+endif
 threads_dep = dependency('threads')
 
 # ---------------------------------------------------------------------------
@@ -76,9 +89,9 @@ endif
 sfml_system = library(
   'sfml-system',
   sfml_system_sources,
-  include_directories : [root_include, extlibs_include],
-  dependencies : [threads_dep],
-  install : true,
+  include_directories: [root_include, extlibs_include],
+  dependencies: [threads_dep],
+  install: true,
 )
 
 alias_target('sfml_system', sfml_system)
@@ -92,7 +105,6 @@ window_sources = files(
   'src/SFML/Window/Cursor.cpp',
   'src/SFML/Window/GlContext.cpp',
   'src/SFML/Window/GlResource.cpp',
-  'src/SFML/Window/InputImpl.cpp',
   'src/SFML/Window/Joystick.cpp',
   'src/SFML/Window/JoystickManager.cpp',
   'src/SFML/Window/Keyboard.cpp',
@@ -119,35 +131,33 @@ if is_windows
     'src/SFML/Window/Win32/SensorImpl.cpp',
     'src/SFML/Window/Win32/VideoModeImpl.cpp',
     'src/SFML/Window/Win32/VulkanImplWin32.cpp',
-    'src/SFML/Window/Win32/WindowImplWin32.cpp',
     'src/SFML/Window/Win32/WglContext.cpp',
+    'src/SFML/Window/Win32/WindowImplWin32.cpp',
   )
-elseif is_linux or is_bsd
-  if get_option('sfml_use_drm')
+elif is_linux or is_bsd
+  if use_drm
     window_sources += files(
       'src/SFML/Window/DRM/ClipboardImpl.cpp',
       'src/SFML/Window/DRM/CursorImpl.cpp',
+      'src/SFML/Window/DRM/DRMContext.cpp',
       'src/SFML/Window/DRM/InputImpl.cpp',
       'src/SFML/Window/DRM/VideoModeImpl.cpp',
-      'src/SFML/Window/DRM/DRMContext.cpp',
       'src/SFML/Window/DRM/WindowImplDRM.cpp',
-      'src/SFML/Window/EGLCheck.cpp',
     )
-  else
+  elif is_linux
     window_sources += files(
       'src/SFML/Window/Unix/ClipboardImpl.cpp',
       'src/SFML/Window/Unix/CursorImpl.cpp',
+      'src/SFML/Window/Unix/Display.cpp',
+      'src/SFML/Window/Unix/GlxContext.cpp',
       'src/SFML/Window/Unix/InputImpl.cpp',
-      'src/SFML/Window/Unix/KeyboardImpl.cpp',
       'src/SFML/Window/Unix/KeySymToKeyMapping.cpp',
       'src/SFML/Window/Unix/KeySymToUnicodeMapping.cpp',
+      'src/SFML/Window/Unix/KeyboardImpl.cpp',
       'src/SFML/Window/Unix/SensorImpl.cpp',
-      'src/SFML/Window/Unix/Display.cpp',
       'src/SFML/Window/Unix/VideoModeImpl.cpp',
       'src/SFML/Window/Unix/VulkanImplX11.cpp',
       'src/SFML/Window/Unix/WindowImplX11.cpp',
-      'src/SFML/Window/Unix/GlxContext.cpp',
-      'src/SFML/Window/EGLCheck.cpp',
     )
   endif
 
@@ -160,28 +170,28 @@ elseif is_linux or is_bsd
   elif is_netbsd
     window_sources += files('src/SFML/Window/NetBSD/JoystickImpl.cpp')
   endif
-elseif is_macos
+elif is_macos
   window_sources += files(
-    'src/SFML/Window/macOS/cg_sf_conversion.mm',
-    'src/SFML/Window/macOS/CursorImpl.mm',
     'src/SFML/Window/macOS/ClipboardImpl.mm',
-    'src/SFML/Window/macOS/InputImpl.mm',
+    'src/SFML/Window/macOS/CursorImpl.mm',
     'src/SFML/Window/macOS/HIDJoystickManager.cpp',
+    'src/SFML/Window/macOS/InputImpl.mm',
     'src/SFML/Window/macOS/JoystickImpl.cpp',
     'src/SFML/Window/macOS/NSImage+raw.mm',
-    'src/SFML/Window/macOS/SensorImpl.cpp',
     'src/SFML/Window/macOS/SFApplication.m',
     'src/SFML/Window/macOS/SFApplicationDelegate.m',
     'src/SFML/Window/macOS/SFContext.mm',
     'src/SFML/Window/macOS/SFKeyboardModifiersHelper.mm',
-    'src/SFML/Window/macOS/SFOpenGLView.mm',
     'src/SFML/Window/macOS/SFOpenGLView+keyboard.mm',
     'src/SFML/Window/macOS/SFOpenGLView+mouse.mm',
+    'src/SFML/Window/macOS/SFOpenGLView.mm',
+    'src/SFML/Window/macOS/SFViewController.mm',
     'src/SFML/Window/macOS/SFWindow.m',
     'src/SFML/Window/macOS/SFWindowController.mm',
-    'src/SFML/Window/macOS/SFViewController.mm',
+    'src/SFML/Window/macOS/SensorImpl.cpp',
     'src/SFML/Window/macOS/VideoModeImpl.cpp',
     'src/SFML/Window/macOS/WindowImplCocoa.mm',
+    'src/SFML/Window/macOS/cg_sf_conversion.mm',
   )
 endif
 
@@ -191,8 +201,8 @@ if is_windows
   window_deps += cc.find_library('gdi32')
   window_deps += cc.find_library('opengl32')
 elif is_linux or is_bsd
-  if get_option('sfml_use_drm')
-    window_deps += dependency('libdrm')
+  if use_drm
+    window_deps += drm_dep
     window_deps += dependency('gbm')
   else
     window_deps += dependency('x11')
@@ -204,16 +214,16 @@ elif is_linux or is_bsd
   window_deps += cc.find_library('dl')
   window_deps += cc.find_library('rt')
 elif is_macos
-  window_deps += dependency('appleframeworks', modules : ['Foundation', 'AppKit', 'IOKit', 'Carbon'])
+  window_deps += dependency('appleframeworks', modules: ['Foundation', 'AppKit', 'IOKit', 'Carbon'])
 endif
 
 sfml_window = library(
   'sfml-window',
   window_sources,
-  include_directories : [root_include, extlibs_include],
-  dependencies : window_deps,
-  link_with : [sfml_system],
-  install : true,
+  include_directories: [root_include, extlibs_include],
+  dependencies: window_deps,
+  link_with: [sfml_system],
+  install: true,
 )
 
 alias_target('sfml_window', sfml_window)
@@ -224,30 +234,43 @@ alias_target('sfml_window', sfml_window)
 graphics_sources = files(
   'src/SFML/Graphics/BlendMode.cpp',
   'src/SFML/Graphics/CircleShape.cpp',
-  'src/SFML/Graphics/Color.cpp',
   'src/SFML/Graphics/ConvexShape.cpp',
   'src/SFML/Graphics/Font.cpp',
-  'src/SFML/Graphics/FontCollection.cpp',
-  'src/SFML/Graphics/Glyph.cpp',
+  'src/SFML/Graphics/GLCheck.cpp',
+  'src/SFML/Graphics/GLExtensions.cpp',
+  'src/SFML/Graphics/Glsl.cpp',
   'src/SFML/Graphics/Image.cpp',
-  'src/SFML/Graphics/PrimitiveType.cpp',
   'src/SFML/Graphics/RectangleShape.cpp',
   'src/SFML/Graphics/RenderStates.cpp',
+  'src/SFML/Graphics/RenderTarget.cpp',
   'src/SFML/Graphics/RenderTexture.cpp',
+  'src/SFML/Graphics/RenderTextureImplDefault.cpp',
+  'src/SFML/Graphics/RenderTextureImplFBO.cpp',
   'src/SFML/Graphics/RenderWindow.cpp',
   'src/SFML/Graphics/Shader.cpp',
   'src/SFML/Graphics/Shape.cpp',
   'src/SFML/Graphics/Sprite.cpp',
+  'src/SFML/Graphics/StencilMode.cpp',
   'src/SFML/Graphics/Text.cpp',
   'src/SFML/Graphics/Texture.cpp',
+  'src/SFML/Graphics/TextureSaver.cpp',
   'src/SFML/Graphics/Transform.cpp',
   'src/SFML/Graphics/Transformable.cpp',
-  'src/SFML/Graphics/Vertex.cpp',
   'src/SFML/Graphics/VertexArray.cpp',
+  'src/SFML/Graphics/VertexBuffer.cpp',
   'src/SFML/Graphics/View.cpp',
 )
 
-graphics_deps = [dependency('freetype2'), dependency('gl')]
+sheenbidi_dep = subproject('SheenBidi').get_variable('sheenbidi_dep')
+harfbuzz_dep = subproject('harfbuzz').get_variable('libharfbuzz_dep')
+# freetype_dep = subproject('freetype').get_variable('freetype_dep')
+
+graphics_deps = [
+  dependency('gl'),
+  sheenbidi_dep,
+  harfbuzz_dep,
+  # freetype_dep,
+]
 if is_linux or is_bsd
   graphics_deps += dependency('libpng')
 endif
@@ -255,10 +278,10 @@ endif
 sfml_graphics = library(
   'sfml-graphics',
   graphics_sources,
-  include_directories : [root_include, extlibs_include],
-  dependencies : graphics_deps,
-  link_with : [sfml_window, sfml_system],
-  install : true,
+  include_directories: [root_include, extlibs_include],
+  dependencies: graphics_deps,
+  link_with: [sfml_window, sfml_system],
+  install: true,
 )
 
 alias_target('sfml_graphics', sfml_graphics)
@@ -267,16 +290,19 @@ alias_target('sfml_graphics', sfml_graphics)
 # sfml-audio
 # ---------------------------------------------------------------------------
 audio_sources = files(
-  'src/SFML/Audio/AlResource.cpp',
   'src/SFML/Audio/AudioDevice.cpp',
+  'src/SFML/Audio/AudioResource.cpp',
   'src/SFML/Audio/InputSoundFile.cpp',
   'src/SFML/Audio/Listener.cpp',
+  'src/SFML/Audio/Miniaudio.cpp',
   'src/SFML/Audio/Music.cpp',
   'src/SFML/Audio/OutputSoundFile.cpp',
+  'src/SFML/Audio/PlaybackDevice.cpp',
   'src/SFML/Audio/Sound.cpp',
   'src/SFML/Audio/SoundBuffer.cpp',
   'src/SFML/Audio/SoundBufferRecorder.cpp',
   'src/SFML/Audio/SoundFileReaderFlac.cpp',
+  'src/SFML/Audio/SoundFileReaderMp3.cpp',
   'src/SFML/Audio/SoundFileReaderOgg.cpp',
   'src/SFML/Audio/SoundFileReaderWav.cpp',
   'src/SFML/Audio/SoundFileWriterFlac.cpp',
@@ -297,10 +323,10 @@ audio_deps = [
 sfml_audio = library(
   'sfml-audio',
   audio_sources,
-  include_directories : [root_include, extlibs_include],
-  dependencies : audio_deps,
-  link_with : [sfml_system, sfml_window],
-  install : true,
+  include_directories: [root_include, extlibs_include],
+  dependencies: audio_deps,
+  link_with: [sfml_system, sfml_window],
+  install: true,
 )
 
 alias_target('sfml_audio', sfml_audio)
@@ -309,31 +335,35 @@ alias_target('sfml_audio', sfml_audio)
 # sfml-network
 # ---------------------------------------------------------------------------
 network_sources = files(
-  'src/SFML/Network/FTP.cpp',
+  'src/SFML/Network/Dns.cpp',
+  'src/SFML/Network/Ftp.cpp',
   'src/SFML/Network/Http.cpp',
   'src/SFML/Network/IpAddress.cpp',
   'src/SFML/Network/Packet.cpp',
+  'src/SFML/Network/Sftp.cpp',
   'src/SFML/Network/Socket.cpp',
+  'src/SFML/Network/SocketSelector.cpp',
   'src/SFML/Network/TcpListener.cpp',
   'src/SFML/Network/TcpSocket.cpp',
   'src/SFML/Network/UdpSocket.cpp',
-  'src/SFML/Network/SocketSelector.cpp',
 )
 
 network_deps = [threads_dep]
 if is_windows
   network_deps += cc.find_library('ws2_32')
+  network_sources += files('src/SFML/Network/Win32/SocketImpl.cpp')
 elif is_linux or is_bsd or is_macos
-  network_deps += cc.find_library('ws2_32', required : false)
+  network_deps += cc.find_library('ws2_32', required: false)
+  network_sources += files('src/SFML/Network/Unix/SocketImpl.cpp')
 endif
 
 sfml_network = library(
   'sfml-network',
   network_sources,
-  include_directories : [root_include, extlibs_include],
-  dependencies : network_deps,
-  link_with : [sfml_system],
-  install : true,
+  include_directories: [root_include, extlibs_include],
+  dependencies: network_deps,
+  link_with: [sfml_system],
+  install: true,
 )
 
 alias_target('sfml_network', sfml_network)
@@ -349,7 +379,11 @@ example_targets = []
 
 examples = [
   ['window', 'examples/window/Window.cpp', [sfml_window]],
-  ['event-handling', 'examples/event_handling/EventHandling.cpp', [sfml_graphics, sfml_window]],
+  [
+    'event-handling',
+    'examples/event_handling/EventHandling.cpp',
+    [sfml_graphics, sfml_window],
+  ],
   ['opengl', 'examples/opengl/OpenGL.cpp', [sfml_graphics, sfml_window]],
   ['stencil', 'examples/stencil/Stencil.cpp', [sfml_graphics, sfml_window]],
   ['text', 'examples/text/Text.cpp', [sfml_graphics, sfml_window]],
@@ -367,9 +401,9 @@ foreach example : examples
   example_targets += executable(
     executable_name,
     source_file,
-    include_directories : root_include,
-    link_with : deps,
-    install : false,
+    include_directories: root_include,
+    link_with: deps,
+    install: false,
   )
 endforeach
 

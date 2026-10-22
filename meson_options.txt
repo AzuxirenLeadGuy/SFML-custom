@@ -18,7 +18,7 @@ option('sfml_build_network', type : 'boolean', value : true,
 option('sfml_build_examples', type : 'boolean', value : true,
   description : 'Build the example programs in the examples/ tree.')
 
-option('sfml_use_drm', type : 'boolean', value : false,
+option('sfml_use_drm', type : 'boolean', value : true,
   description : 'On Linux, prefer the DRM/GBM backend instead of the X11 desktop backend.')
 
 option('sfml_build_doc', type : 'boolean', value : false,
